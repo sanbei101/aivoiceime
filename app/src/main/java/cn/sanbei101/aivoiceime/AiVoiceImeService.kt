@@ -118,7 +118,7 @@ fun KeyboardScreen(
                     .height(32.dp)
                     .clip(RoundedCornerShape(16.dp))
                     .background(FunctionKeyColor)
-                    .clickable { onText("【豆包AI识别的文本】") },
+                    .clickable { onText("[豆包AI识别的文本]") },
                 contentAlignment = Alignment.Center
             ) {
                 Text("🎙️ 点击说话", color = TextWhite, fontSize = 13.sp)

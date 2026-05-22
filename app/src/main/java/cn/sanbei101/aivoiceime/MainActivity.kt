@@ -47,7 +47,7 @@ fun ImeGuideScreen(modifier: Modifier = Modifier, onOpenSettings: () -> Unit) {
         Text(text = "欢迎使用 AI 语音输入法", fontSize = 20.sp, modifier = Modifier.padding(bottom = 24.dp))
 
         Button(onClick = onOpenSettings) {
-            Text(text = "第一步：去系统设置中激活输入法")
+            Text(text = "第一步:去系统设置中激活输入法")
         }
         Text(
             text = "提示:激活后,打开任意输入框,切换输入法即可使用",
