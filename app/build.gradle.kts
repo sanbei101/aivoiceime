@@ -54,6 +54,7 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.okhttp)
+    implementation(libs.androidx.compose.material.icons.extended)
     implementation(libs.coroutines)
     testImplementation(libs.junit)
     androidTestImplementation(platform(libs.androidx.compose.bom))

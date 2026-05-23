@@ -11,12 +11,23 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Backspace
+import androidx.compose.material.icons.filled.KeyboardCapslock
+import androidx.compose.material.icons.filled.KeyboardHide
+import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.SpaceBar
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -27,6 +38,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.text.font.FontWeight
@@ -47,6 +59,10 @@ import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import cn.sanbei101.aivoiceime.asr.AsrSession
 import cn.sanbei101.aivoiceime.asr.AsrWsClient
 import cn.sanbei101.aivoiceime.asr.AudioRecorder
+import cn.sanbei101.aivoiceime.ui.theme.BgColor
+import cn.sanbei101.aivoiceime.ui.theme.FunctionKeyColor
+import cn.sanbei101.aivoiceime.ui.theme.KeyColor
+import cn.sanbei101.aivoiceime.ui.theme.TextWhite
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -148,10 +164,6 @@ class AiVoiceImeService : InputMethodService(), LifecycleOwner, ViewModelStoreOw
     }
 }
 
-val BgColor = Color(0xFF1E1E1E)
-val KeyColor = Color(0xFF424242)
-val FunctionKeyColor = Color(0xFF303030)
-val TextWhite = Color(0xFFFFFFFF)
 
 private val row1 = listOf("Q","W","E","R","T","Y","U","I","O","P")
 private val row2 = listOf("A","S","D","F","G","H","J","K","L")
@@ -183,11 +195,17 @@ fun KeyboardScreen(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text("⚙️", color = TextWhite, fontSize = 20.sp, modifier = Modifier.clickable { })
-
+            Icon(
+                imageVector = Icons.Default.Settings,
+                contentDescription = "设置",
+                tint = TextWhite,
+                modifier = Modifier
+                    .size(22.dp)
+                    .clickable { /* TODO: 点击设置 */ }
+            )
             Surface(
                 modifier = Modifier
-                    .width(120.dp)
+                    .width(130.dp)
                     .height(32.dp)
                     .pointerInput(Unit) {
                         detectTapGestures(
@@ -203,16 +221,33 @@ fun KeyboardScreen(
                 shape = RoundedCornerShape(16.dp),
                 color = if (isRecording) Color(0xFFD32F2F) else FunctionKeyColor
             ) {
-                Box(contentAlignment = Alignment.Center) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center,
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Mic,
+                        contentDescription = "语音输入",
+                        tint = TextWhite,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        if (isRecording) "🔴 识别中..." else "🎙️ 按住说话",
+                        text = if (isRecording) "识别中..." else "按住说话",
                         color = TextWhite,
                         fontSize = 13.sp
                     )
                 }
             }
-
-            Text("🔽", color = TextWhite, fontSize = 18.sp, modifier = Modifier.clickable { onHide() })
+            Icon(
+                imageVector = Icons.Default.KeyboardHide,
+                contentDescription = "隐藏键盘",
+                tint = TextWhite,
+                modifier = Modifier
+                    .size(22.dp)
+                    .clickable { onHide() }
+            )
         }
 
         Column(
@@ -224,33 +259,54 @@ fun KeyboardScreen(
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 row1.forEach { char -> KeyButton(char, Modifier.weight(1f)) { onText(char) } }
             }
+
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 Spacer(modifier = Modifier.weight(0.5f))
                 row2.forEach { char -> KeyButton(char, Modifier.weight(1f)) { onText(char) } }
                 Spacer(modifier = Modifier.weight(0.5f))
             }
+
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                KeyButton("⇧", Modifier.weight(1.5f), FunctionKeyColor) { }
+                KeyIconButton(
+                    imageVector = Icons.Default.KeyboardCapslock,
+                    contentDescription = "大小写切换",
+                    modifier = Modifier.weight(1.5f),
+                    backgroundColor = FunctionKeyColor
+                ) { /* TODO: 处理大小写切换逻辑 */ }
+
                 row3.forEach { char -> KeyButton(char, Modifier.weight(1f)) { onText(char) } }
-                KeyButton("⌫", Modifier.weight(1.5f), FunctionKeyColor) { onDelete() }
+
+                KeyIconButton(
+                    imageVector = Icons.AutoMirrored.Filled.Backspace,
+                    contentDescription = "删除",
+                    modifier = Modifier.weight(1.5f),
+                    backgroundColor = FunctionKeyColor,
+                    iconSize = 20.dp
+                ) { onDelete() }
             }
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 KeyButton("123", Modifier.weight(1.5f), FunctionKeyColor) {}
                 KeyButton(",", Modifier.weight(1f), FunctionKeyColor) { onText(",") }
-                Surface(
-                    onClick = { onText(" ") },
-                    modifier = Modifier.weight(4.5f).height(46.dp),
-                    shape = RoundedCornerShape(6.dp),
-                    color = KeyColor
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Text("⌴    |i|i|", color = Color.LightGray, fontSize = 14.sp)
-                    }
-                }
-                KeyButton("中/英", Modifier.weight(1.2f), FunctionKeyColor) {}
+
+                KeyIconButton(
+                    imageVector = Icons.Default.SpaceBar,
+                    contentDescription = "空格",
+                    modifier = Modifier.weight(4.3f),
+                    backgroundColor = KeyColor,
+                    iconSize = 18.dp
+                ) { onText(" ") }
+                KeyIconButton(
+                    imageVector = Icons.Default.Language,
+                    contentDescription = "切换语言",
+                    modifier = Modifier.weight(1.4f),
+                    backgroundColor = FunctionKeyColor,
+                    iconSize = 20.dp
+                ) { /* TODO: 处理中英文切换逻辑 */ }
+
                 KeyButton("换行", Modifier.weight(1.8f), FunctionKeyColor) { onEnter() }
             }
         }
@@ -275,3 +331,31 @@ fun KeyButton(
         }
     }
 }
+
+@Composable
+fun KeyIconButton(
+    imageVector: ImageVector,
+    contentDescription: String,
+    modifier: Modifier = Modifier,
+    backgroundColor: Color = KeyColor,
+    iconSize: androidx.compose.ui.unit.Dp = 22.dp,
+    onClick: () -> Unit
+) {
+    Surface(
+        onClick = onClick,
+        modifier = modifier.height(46.dp),
+        shape = RoundedCornerShape(6.dp),
+        color = backgroundColor
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Icon(
+                imageVector = imageVector,
+                contentDescription = contentDescription,
+                tint = TextWhite,
+                modifier = Modifier.size(iconSize)
+            )
+        }
+    }
+}
+
+
