@@ -2,7 +2,6 @@ package cn.sanbei101.aivoiceime
 
 import android.Manifest
 import android.content.Intent
-import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
 import android.util.Log
@@ -21,9 +20,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import cn.sanbei101.aivoiceime.ui.theme.AivoiceimeTheme
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 
@@ -62,7 +61,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun ImeGuideScreen(modifier: Modifier = Modifier, onOpenSettings: () -> Unit) {
     var netStatus by remember { mutableStateOf("") }
-
+    val coroutineScope = rememberCoroutineScope()
     Column(
         modifier = modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -78,14 +77,16 @@ fun ImeGuideScreen(modifier: Modifier = Modifier, onOpenSettings: () -> Unit) {
 
         Button(onClick = {
             netStatus = "测试中..."
-            CoroutineScope(Dispatchers.IO).launch {
-                val status = try {
-                    val resp = OkHttpClient().newCall(
-                        Request.Builder().url("https://baidu.com").head().build()
-                    ).execute()
-                    "HTTP ${resp.code}"
-                } catch (e: Exception) {
-                    "失败: ${e.message}"
+            coroutineScope.launch {
+                val status = withContext(Dispatchers.IO) {
+                    try {
+                        val resp = OkHttpClient().newCall(
+                            Request.Builder().url("https://baidu.com").head().build()
+                        ).execute()
+                        "HTTP ${resp.code}"
+                    } catch (e: Exception) {
+                        "失败: ${e.message}"
+                    }
                 }
                 netStatus = status
             }
