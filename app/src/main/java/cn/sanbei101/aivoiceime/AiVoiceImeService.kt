@@ -51,7 +51,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-private const val APP_KEY = "4965143576"
 private const val ACCESS_KEY = "ec2cd821-0358-497c-80a6-cecd5b22e1ea"
 private const val ASR_URL = "wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async"
 
@@ -66,7 +65,7 @@ class AiVoiceImeService : InputMethodService(), LifecycleOwner, ViewModelStoreOw
     override val savedStateRegistry: SavedStateRegistry = savedStateRegistryController.savedStateRegistry
 
     private val recorder = AudioRecorder()
-    private val asrClient = AsrWsClient(ASR_URL, APP_KEY, ACCESS_KEY)
+    private val asrClient = AsrWsClient(ASR_URL, ACCESS_KEY)
     private var session: AsrSession? = null
 
     override fun onCreate() {

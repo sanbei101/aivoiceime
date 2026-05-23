@@ -61,9 +61,9 @@ internal fun buildAudioRequest(seq: Int, segment: ByteArray): ByteArray {
     }.array()
 }
 
-internal fun buildAuthHeaders(appKey: String, accessKey: String, requestId: String): Map<String, String> = mapOf(
+internal fun buildAuthHeaders(apiKey: String, requestId: String): Map<String, String> = mapOf(
     "X-Api-Resource-Id" to "volc.seedasr.sauc.duration",
     "X-Api-Request-Id" to requestId,
-    "X-Api-Access-Key" to accessKey,
-    "X-Api-App-Key" to appKey
+    "X-Api-Key" to apiKey,
+    "X-Api-Sequence" to "-1"
 )

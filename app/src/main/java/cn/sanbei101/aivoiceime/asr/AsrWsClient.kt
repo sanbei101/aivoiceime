@@ -18,23 +18,21 @@ private const val SEGMENT_BYTES = SEGMENT_SAMPLES * 2
 
 class AsrWsClient(
     private val url: String,
-    private val appKey: String,
-    private val accessKey: String
+    private val apiKey: String
 ) {
     private val httpClient = OkHttpClient.Builder()
         .readTimeout(0, TimeUnit.MILLISECONDS)
         .build()
 
     fun startSession(uid: String = "android_uid"): AsrSession {
-        return AsrSession(httpClient, url, appKey, accessKey, uid)
+        return AsrSession(httpClient, url, apiKey, uid)
     }
 }
 
 class AsrSession internal constructor(
     httpClient: OkHttpClient,
     url: String,
-    appKey: String,
-    accessKey: String,
+    apiKey: String,
     uid: String
 ) {
     private var seq = 1
@@ -47,7 +45,7 @@ class AsrSession internal constructor(
     private lateinit var flowClose: (Throwable?) -> Unit
 
     init {
-        val headers = buildAuthHeaders(appKey, accessKey, UUID.randomUUID().toString())
+        val headers = buildAuthHeaders(apiKey, UUID.randomUUID().toString())
         val reqBuilder = Request.Builder().url(url)
         headers.forEach { (k, v) -> reqBuilder.addHeader(k, v) }
 
