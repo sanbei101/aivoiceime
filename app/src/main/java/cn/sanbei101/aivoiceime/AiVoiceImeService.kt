@@ -1,5 +1,7 @@
 package cn.sanbei101.aivoiceime
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.inputmethodservice.InputMethodService
 import android.view.KeyEvent
 import android.view.View
@@ -110,6 +112,9 @@ class AiVoiceImeService : InputMethodService(), LifecycleOwner, ViewModelStoreOw
     }
 
     fun startVoiceInput() {
+        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            return
+        }
         val s = asrClient.startSession()
         session = s
         lifecycleScope.launch {
