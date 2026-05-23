@@ -2,6 +2,7 @@ package cn.sanbei101.aivoiceime
 
 import android.Manifest
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
 import android.util.Log
@@ -34,7 +35,7 @@ class MainActivity : ComponentActivity() {
         if (!granted) {
             Toast.makeText(this@MainActivity, "需要麦克风权限才能使用语音输入", Toast.LENGTH_LONG).show()
             startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                data = android.net.Uri.fromParts("package", packageName, null)
+                data = Uri.fromParts("package", packageName, null)
             })
         }
     }
