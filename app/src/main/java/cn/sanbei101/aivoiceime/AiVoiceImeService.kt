@@ -73,8 +73,10 @@ import cn.sanbei101.aivoiceime.ui.theme.FunctionKeyColor
 import cn.sanbei101.aivoiceime.ui.theme.KeyColor
 import cn.sanbei101.aivoiceime.ui.theme.TextWhite
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+
 private const val ASR_URL = "wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async"
 
 class AiVoiceImeService : InputMethodService(), LifecycleOwner, ViewModelStoreOwner, SavedStateRegistryOwner {
@@ -90,6 +92,7 @@ class AiVoiceImeService : InputMethodService(), LifecycleOwner, ViewModelStoreOw
     private val recorder = AudioRecorder()
     private val asrClient = AsrWsClient(ASR_URL, BuildConfig.ASR_API_KEY)
     private var session: AsrSession? = null
+    private var responseJob: Job? = null
     private val pinyinDao: PinyinDao by lazy { PinyinDatabase.getInstance(this).pinyinDao() }
 
     override fun onCreate() {
@@ -127,7 +130,7 @@ class AiVoiceImeService : InputMethodService(), LifecycleOwner, ViewModelStoreOw
         }
         val s = asrClient.startSession()
         session = s
-        lifecycleScope.launch {
+        responseJob = lifecycleScope.launch {
             s.responses.collect { resp ->
                 val text = resp.result?.text ?: return@collect
                 withContext(Dispatchers.Main) {
@@ -140,12 +143,21 @@ class AiVoiceImeService : InputMethodService(), LifecycleOwner, ViewModelStoreOw
             }
         }
         recorder.start { pcm, length -> s.sendPcm(pcm, 0, length) }
+            .onFailure { error ->
+                Log.e("AiVoiceImeService", "Failed to start audio recorder", error)
+                responseJob?.cancel()
+                responseJob = null
+                s.close()
+                session = null
+            }
     }
 
     fun stopVoiceInput() {
         recorder.stop()
         session?.finish()
         session = null
+        responseJob?.cancel()
+        responseJob = null
     }
 
     override fun onCreateInputView(): View {
