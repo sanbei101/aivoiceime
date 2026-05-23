@@ -101,7 +101,6 @@ class AiVoiceImeService : InputMethodService(), LifecycleOwner, ViewModelStoreOw
                 val text = resp.result?.text ?: return@collect
                 withContext(Dispatchers.Main) {
                     if (resp.isLastPackage) {
-                        currentInputConnection?.finishComposingText()
                         currentInputConnection?.commitText(text, 1)
                     } else {
                         currentInputConnection?.setComposingText(text, 1)
