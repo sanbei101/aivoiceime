@@ -6,7 +6,8 @@ on:
   pull_request:
     branches: [ "main" ]
   workflow_dispatch:
-
+permissions:
+  contents: write
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -33,3 +34,10 @@ jobs:
         with:
           name: ai-ime
           path: app/build/outputs/apk/release/*.apk
+
+      - name: Release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: latest
+          name: 语音输入法
+          files: app/build/outputs/apk/release/*.apk
