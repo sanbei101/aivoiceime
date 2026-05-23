@@ -14,6 +14,7 @@ import okio.ByteString.Companion.toByteString
 import java.io.ByteArrayOutputStream
 import java.util.UUID
 import java.util.concurrent.TimeUnit
+import kotlin.math.min
 
 private const val SEGMENT_BYTES = 16000 * 2 * 200 / 1000
 
@@ -34,7 +35,8 @@ class AsrSession internal constructor(
     private val lock = Any()
     @Volatile private var handshakeDone = false
     @Volatile private var ws: WebSocket? = null
-    private val accumulator = ByteArrayOutputStream()
+    private val segmentBuffer = ByteArray(SEGMENT_BYTES)
+    private var segmentBytes = 0
     private val pending = ByteArrayOutputStream()
 
     val responses: Flow<AsrResponse> = callbackFlow {
@@ -96,19 +98,29 @@ class AsrSession internal constructor(
     }
 
     fun finish() = synchronized(lock) {
-        val remaining = accumulator.toByteArray()
-        accumulator.reset()
-        ws?.send(buildAudioRequest(true, remaining).toByteString())
+        ws?.send(buildAudioRequest(true, segmentBuffer, 0, segmentBytes).toByteString())
+        segmentBytes = 0
     }
 
     private fun drainLocked(pcm: ByteArray, offset: Int = 0, length: Int = pcm.size - offset) {
-        accumulator.write(pcm, offset, length)
-        while (accumulator.size() >= SEGMENT_BYTES) {
-            val buf = accumulator.toByteArray()
-            val chunk = buf.copyOf(SEGMENT_BYTES)
-            accumulator.reset()
-            accumulator.write(buf, SEGMENT_BYTES, buf.size - SEGMENT_BYTES)
-            ws?.send(buildAudioRequest(false, chunk).toByteString())
+        var readOffset = offset
+        var remaining = length
+        while (remaining > 0) {
+            val bytesToCopy = min(remaining, SEGMENT_BYTES - segmentBytes)
+            pcm.copyInto(
+                destination = segmentBuffer,
+                destinationOffset = segmentBytes,
+                startIndex = readOffset,
+                endIndex = readOffset + bytesToCopy
+            )
+            segmentBytes += bytesToCopy
+            readOffset += bytesToCopy
+            remaining -= bytesToCopy
+
+            if (segmentBytes == SEGMENT_BYTES) {
+                ws?.send(buildAudioRequest(false, segmentBuffer).toByteString())
+                segmentBytes = 0
+            }
         }
     }
 }

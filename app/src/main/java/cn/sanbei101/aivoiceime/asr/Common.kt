@@ -33,8 +33,12 @@ internal object Compression {
 }
 
 internal fun gzipCompress(input: ByteArray): ByteArray {
+    return gzipCompress(input, 0, input.size)
+}
+
+internal fun gzipCompress(input: ByteArray, offset: Int, length: Int): ByteArray {
     val out = ByteArrayOutputStream()
-    GZIPOutputStream(out).use { it.write(input) }
+    GZIPOutputStream(out).use { it.write(input, offset, length) }
     return out.toByteArray()
 }
 

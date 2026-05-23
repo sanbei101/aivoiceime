@@ -47,10 +47,15 @@ internal fun buildFullClientRequest(uid: String = "android_uid"): ByteArray {
     }.array()
 }
 
-internal fun buildAudioRequest(isLast: Boolean, segment: ByteArray): ByteArray {
+internal fun buildAudioRequest(
+    isLast: Boolean,
+    segment: ByteArray,
+    offset: Int = 0,
+    length: Int = segment.size - offset
+): ByteArray {
     val flags = if (isLast) Flags.NEG_SEQUENCE else Flags.NO_SEQUENCE
     val header = buildHeader(MessageType.CLIENT_AUDIO_ONLY_REQUEST, flags, Serialization.NO_SERIALIZATION)
-    val compressed = gzipCompress(segment)
+    val compressed = gzipCompress(segment, offset, length)
 
     return ByteBuffer.allocate(header.size + 4 + compressed.size).apply {
         put(header)

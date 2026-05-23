@@ -193,11 +193,22 @@ fun KeyboardScreen(
     onRecordStop: () -> Unit
 ) {
     var isRecording by remember { mutableStateOf(false) }
-    var pinyinBuffer by remember { mutableStateOf("") }
+    val pinyinBuffer = remember { StringBuilder() }
+    var pinyinText by remember { mutableStateOf("") }
     var candidates by remember { mutableStateOf(emptyList<PinyinCandidate>()) }
 
+    fun syncPinyinText() {
+        pinyinText = pinyinBuffer.toString()
+    }
+
+    fun appendPinyin(char: String) {
+        pinyinBuffer.append(char.lowercase())
+        syncPinyinText()
+    }
+
     fun clearPinyin() {
-        pinyinBuffer = ""
+        pinyinBuffer.clear()
+        pinyinText = ""
         candidates = emptyList()
     }
 
@@ -210,17 +221,17 @@ fun KeyboardScreen(
         val firstCandidate = candidates.firstOrNull()?.word
         when {
             firstCandidate != null -> commitCandidate(firstCandidate)
-            pinyinBuffer.isNotEmpty() -> commitCandidate(pinyinBuffer)
+            pinyinText.isNotEmpty() -> commitCandidate(pinyinText)
             else -> onText(" ")
         }
     }
 
-    LaunchedEffect(pinyinBuffer) {
-        candidates = if (pinyinBuffer.isBlank()) {
+    LaunchedEffect(pinyinText) {
+        candidates = if (pinyinText.isBlank()) {
             emptyList()
         } else {
             withContext(Dispatchers.IO) {
-                pinyinDao.candidates(pinyinBuffer.lowercase())
+                pinyinDao.candidates(pinyinText.lowercase())
             }
         }
     }
@@ -296,7 +307,7 @@ fun KeyboardScreen(
         }
 
         CandidateRow(
-            pinyin = pinyinBuffer,
+            pinyin = pinyinText,
             candidates = candidates,
             onCandidate = { commitCandidate(it.word) }
         )
@@ -310,7 +321,7 @@ fun KeyboardScreen(
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 row1.forEach { char ->
                     KeyButton(char, Modifier.weight(1f)) {
-                        pinyinBuffer += char.lowercase()
+                        appendPinyin(char)
                     }
                 }
             }
@@ -319,7 +330,7 @@ fun KeyboardScreen(
                 Spacer(modifier = Modifier.weight(0.5f))
                 row2.forEach { char ->
                     KeyButton(char, Modifier.weight(1f)) {
-                        pinyinBuffer += char.lowercase()
+                        appendPinyin(char)
                     }
                 }
                 Spacer(modifier = Modifier.weight(0.5f))
@@ -335,7 +346,7 @@ fun KeyboardScreen(
 
                 row3.forEach { char ->
                     KeyButton(char, Modifier.weight(1f)) {
-                        pinyinBuffer += char.lowercase()
+                        appendPinyin(char)
                     }
                 }
 
@@ -347,7 +358,8 @@ fun KeyboardScreen(
                     iconSize = 20.dp
                 ) {
                     if (pinyinBuffer.isNotEmpty()) {
-                        pinyinBuffer = pinyinBuffer.dropLast(1)
+                        pinyinBuffer.deleteAt(pinyinBuffer.lastIndex)
+                        syncPinyinText()
                     } else {
                         onDelete()
                     }
