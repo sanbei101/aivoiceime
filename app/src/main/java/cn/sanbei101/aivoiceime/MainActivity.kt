@@ -2,8 +2,11 @@ package cn.sanbei101.aivoiceime
 
 import android.Manifest
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
+import android.util.Log
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -28,7 +31,13 @@ class MainActivity : ComponentActivity() {
     private val requestPermission = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
-        android.util.Log.d("MainActivity", "RECORD_AUDIO granted=$granted")
+        Log.d("MainActivity", "RECORD_AUDIO granted=$granted")
+        if (!granted) {
+            Toast.makeText(this@MainActivity, "需要麦克风权限才能使用语音输入", Toast.LENGTH_LONG).show()
+            startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                data = android.net.Uri.fromParts("package", packageName, null)
+            })
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
