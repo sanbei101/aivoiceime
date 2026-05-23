@@ -8,6 +8,8 @@ import androidx.lifecycle.viewModelScope
 import cn.sanbei101.aivoiceime.pinyin.PinyinCandidate
 import cn.sanbei101.aivoiceime.pinyin.PinyinDao
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 class KeyboardViewModel(private val pinyinDao: PinyinDao) : ViewModel() {
@@ -19,7 +21,7 @@ class KeyboardViewModel(private val pinyinDao: PinyinDao) : ViewModel() {
         private set
 
     private val pinyinBuffer = StringBuilder()
-
+    private var searchJob: Job? = null
     fun appendPinyin(char: String) {
         pinyinBuffer.append(char.lowercase())
         updatePinyinState()
@@ -43,9 +45,18 @@ class KeyboardViewModel(private val pinyinDao: PinyinDao) : ViewModel() {
 
     private fun updatePinyinState() {
         pinyinText = pinyinBuffer.toString()
-        viewModelScope.launch(Dispatchers.IO) {
-            candidates = if (pinyinText.isBlank()) emptyList()
-            else pinyinDao.candidates(pinyinText)
+        searchJob?.cancel()
+
+        searchJob = viewModelScope.launch(Dispatchers.IO) {
+            if (pinyinText.isBlank()) {
+                candidates = emptyList()
+                return@launch
+            }
+
+            delay(100)
+
+            val result = pinyinDao.candidates(pinyinText)
+            candidates = result
         }
     }
 }
