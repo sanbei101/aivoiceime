@@ -103,6 +103,7 @@ class AiVoiceImeService : InputMethodService(), LifecycleOwner, ViewModelStoreOw
     }
 
     override fun onDestroy() {
+        stopVoiceInput()
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_DESTROY)
         store.clear()
         super.onDestroy()
@@ -115,9 +116,10 @@ class AiVoiceImeService : InputMethodService(), LifecycleOwner, ViewModelStoreOw
     }
 
     override fun onWindowHidden() {
-        super.onWindowHidden()
+        stopVoiceInput()
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_PAUSE)
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_STOP)
+        super.onWindowHidden()
     }
 
     fun startVoiceInput() {
@@ -128,6 +130,11 @@ class AiVoiceImeService : InputMethodService(), LifecycleOwner, ViewModelStoreOw
             Log.e("AiVoiceImeService", "ASR_API_KEY is not configured")
             return
         }
+
+        if (session != null || responseJob != null) {
+            stopVoiceInput()
+        }
+
         val s = asrClient.startSession()
         session = s
         responseJob = lifecycleScope.launch {
@@ -145,10 +152,7 @@ class AiVoiceImeService : InputMethodService(), LifecycleOwner, ViewModelStoreOw
         recorder.start { pcm, length -> s.sendPcm(pcm, 0, length) }
             .onFailure { error ->
                 Log.e("AiVoiceImeService", "Failed to start audio recorder", error)
-                responseJob?.cancel()
-                responseJob = null
-                s.close()
-                session = null
+                stopVoiceInput()
             }
     }
 
@@ -162,11 +166,6 @@ class AiVoiceImeService : InputMethodService(), LifecycleOwner, ViewModelStoreOw
 
     override fun onCreateInputView(): View {
         return ComposeView(this).apply {
-            window?.window?.decorView?.let { decorView ->
-                decorView.setViewTreeLifecycleOwner(this@AiVoiceImeService)
-                decorView.setViewTreeViewModelStoreOwner(this@AiVoiceImeService)
-                decorView.setViewTreeSavedStateRegistryOwner(this@AiVoiceImeService)
-            }
             setViewTreeLifecycleOwner(this@AiVoiceImeService)
             setViewTreeViewModelStoreOwner(this@AiVoiceImeService)
             setViewTreeSavedStateRegistryOwner(this@AiVoiceImeService)
