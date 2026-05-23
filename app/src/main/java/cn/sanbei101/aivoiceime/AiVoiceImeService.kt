@@ -165,6 +165,11 @@ class AiVoiceImeService : InputMethodService(), LifecycleOwner, ViewModelStoreOw
     }
 
     override fun onCreateInputView(): View {
+        window.window?.decorView?.apply {
+            setViewTreeLifecycleOwner(this@AiVoiceImeService)
+            setViewTreeViewModelStoreOwner(this@AiVoiceImeService)
+            setViewTreeSavedStateRegistryOwner(this@AiVoiceImeService)
+        }
         return ComposeView(this).apply {
             setViewTreeLifecycleOwner(this@AiVoiceImeService)
             setViewTreeViewModelStoreOwner(this@AiVoiceImeService)
