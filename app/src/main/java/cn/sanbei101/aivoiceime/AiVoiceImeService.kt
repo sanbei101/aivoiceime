@@ -20,6 +20,8 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Backspace
@@ -33,6 +35,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -61,6 +64,9 @@ import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import cn.sanbei101.aivoiceime.asr.AsrSession
 import cn.sanbei101.aivoiceime.asr.AsrWsClient
 import cn.sanbei101.aivoiceime.asr.AudioRecorder
+import cn.sanbei101.aivoiceime.pinyin.PinyinCandidate
+import cn.sanbei101.aivoiceime.pinyin.PinyinDao
+import cn.sanbei101.aivoiceime.pinyin.PinyinDatabase
 import cn.sanbei101.aivoiceime.ui.theme.BgColor
 import cn.sanbei101.aivoiceime.ui.theme.FunctionKeyColor
 import cn.sanbei101.aivoiceime.ui.theme.KeyColor
@@ -85,6 +91,7 @@ class AiVoiceImeService : InputMethodService(), LifecycleOwner, ViewModelStoreOw
     private val recorder = AudioRecorder()
     private val asrClient = AsrWsClient(ASR_URL, ACCESS_KEY)
     private var session: AsrSession? = null
+    private val pinyinDao: PinyinDao by lazy { PinyinDatabase.getInstance(this).pinyinDao() }
 
     override fun onCreate() {
         savedStateRegistryController.performAttach()
@@ -151,6 +158,7 @@ class AiVoiceImeService : InputMethodService(), LifecycleOwner, ViewModelStoreOw
 
             setContent {
                 KeyboardScreen(
+                    pinyinDao = pinyinDao,
                     onText = { currentInputConnection?.commitText(it, 1) },
                     onDelete = {
                         currentInputConnection?.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DEL))
@@ -176,6 +184,7 @@ private val row3 = listOf("Z","X","C","V","B","N","M")
 
 @Composable
 fun KeyboardScreen(
+    pinyinDao: PinyinDao,
     onText: (String) -> Unit,
     onDelete: () -> Unit,
     onEnter: () -> Unit,
@@ -184,6 +193,37 @@ fun KeyboardScreen(
     onRecordStop: () -> Unit
 ) {
     var isRecording by remember { mutableStateOf(false) }
+    var pinyinBuffer by remember { mutableStateOf("") }
+    var candidates by remember { mutableStateOf(emptyList<PinyinCandidate>()) }
+
+    fun clearPinyin() {
+        pinyinBuffer = ""
+        candidates = emptyList()
+    }
+
+    fun commitCandidate(text: String) {
+        onText(text)
+        clearPinyin()
+    }
+
+    fun commitFirstCandidateOrSpace() {
+        val firstCandidate = candidates.firstOrNull()?.word
+        when {
+            firstCandidate != null -> commitCandidate(firstCandidate)
+            pinyinBuffer.isNotEmpty() -> commitCandidate(pinyinBuffer)
+            else -> onText(" ")
+        }
+    }
+
+    LaunchedEffect(pinyinBuffer) {
+        candidates = if (pinyinBuffer.isBlank()) {
+            emptyList()
+        } else {
+            withContext(Dispatchers.IO) {
+                pinyinDao.candidates(pinyinBuffer.lowercase())
+            }
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -255,6 +295,12 @@ fun KeyboardScreen(
             )
         }
 
+        CandidateRow(
+            pinyin = pinyinBuffer,
+            candidates = candidates,
+            onCandidate = { commitCandidate(it.word) }
+        )
+
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -262,12 +308,20 @@ fun KeyboardScreen(
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                row1.forEach { char -> KeyButton(char, Modifier.weight(1f)) { onText(char) } }
+                row1.forEach { char ->
+                    KeyButton(char, Modifier.weight(1f)) {
+                        pinyinBuffer += char.lowercase()
+                    }
+                }
             }
 
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 Spacer(modifier = Modifier.weight(0.5f))
-                row2.forEach { char -> KeyButton(char, Modifier.weight(1f)) { onText(char) } }
+                row2.forEach { char ->
+                    KeyButton(char, Modifier.weight(1f)) {
+                        pinyinBuffer += char.lowercase()
+                    }
+                }
                 Spacer(modifier = Modifier.weight(0.5f))
             }
 
@@ -279,7 +333,11 @@ fun KeyboardScreen(
                     backgroundColor = FunctionKeyColor
                 ) { /* TODO: 处理大小写切换逻辑 */ }
 
-                row3.forEach { char -> KeyButton(char, Modifier.weight(1f)) { onText(char) } }
+                row3.forEach { char ->
+                    KeyButton(char, Modifier.weight(1f)) {
+                        pinyinBuffer += char.lowercase()
+                    }
+                }
 
                 KeyIconButton(
                     imageVector = Icons.AutoMirrored.Filled.Backspace,
@@ -287,7 +345,13 @@ fun KeyboardScreen(
                     modifier = Modifier.weight(1.5f),
                     backgroundColor = FunctionKeyColor,
                     iconSize = 20.dp
-                ) { onDelete() }
+                ) {
+                    if (pinyinBuffer.isNotEmpty()) {
+                        pinyinBuffer = pinyinBuffer.dropLast(1)
+                    } else {
+                        onDelete()
+                    }
+                }
             }
 
             Row(
@@ -303,7 +367,7 @@ fun KeyboardScreen(
                     modifier = Modifier.weight(4.3f),
                     backgroundColor = KeyColor,
                     iconSize = 18.dp
-                ) { onText(" ") }
+                ) { commitFirstCandidateOrSpace() }
                 KeyIconButton(
                     imageVector = Icons.Default.Language,
                     contentDescription = "切换语言",
@@ -313,6 +377,69 @@ fun KeyboardScreen(
                 ) { /* TODO: 处理中英文切换逻辑 */ }
 
                 KeyButton("换行", Modifier.weight(1.8f), FunctionKeyColor) { onEnter() }
+            }
+        }
+    }
+}
+
+@Composable
+fun CandidateRow(
+    pinyin: String,
+    candidates: List<PinyinCandidate>,
+    onCandidate: (PinyinCandidate) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(42.dp)
+            .padding(horizontal = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        if (pinyin.isNotEmpty()) {
+            Surface(
+                modifier = Modifier.height(30.dp),
+                shape = RoundedCornerShape(6.dp),
+                color = FunctionKeyColor
+            ) {
+                Box(
+                    modifier = Modifier.padding(horizontal = 10.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = pinyin,
+                        color = TextWhite,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(6.dp))
+
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                items(candidates) { candidate ->
+                    Surface(
+                        onClick = { onCandidate(candidate) },
+                        modifier = Modifier.height(32.dp),
+                        shape = RoundedCornerShape(6.dp),
+                        color = KeyColor
+                    ) {
+                        Box(
+                            modifier = Modifier.padding(horizontal = 12.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = candidate.word,
+                                color = TextWhite,
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+                }
             }
         }
     }
@@ -362,5 +489,3 @@ fun KeyIconButton(
         }
     }
 }
-
-
