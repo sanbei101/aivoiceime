@@ -84,8 +84,11 @@ class AsrSession internal constructor(
     }
 
     fun sendPcm(pcm: ByteArray) = synchronized(lock) {
-        if (!handshakeDone) { pending.write(pcm); return }
-        drainLocked(pcm)
+        if (!handshakeDone) {
+            pending.write(pcm)
+        } else {
+            drainLocked(pcm)
+        }
     }
 
     fun finish() = synchronized(lock) {
