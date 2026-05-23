@@ -9,9 +9,14 @@ interface PinyinDao {
         """
         SELECT word, MAX(frequency) AS frequency
         FROM pinyin_dict
-        WHERE pinyin = :pinyin AND word IS NOT NULL
+        -- 使用 LIKE 进行前缀匹配，输入 "zh" 可以匹配到 "zhe", "zhong" 等
+        WHERE pinyin LIKE :pinyin || '%' AND word IS NOT NULL
         GROUP BY word
-        ORDER BY frequency DESC
+        ORDER BY 
+            -- 优先显示拼音长度最短的
+            MIN(LENGTH(pinyin)) ASC, 
+            -- 其次按词频降序排列
+            frequency DESC
         LIMIT :limit
         """
     )
