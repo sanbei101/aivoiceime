@@ -15,7 +15,7 @@ class AudioRecorder {
     @Volatile private var recording = false
 
     @RequiresPermission(Manifest.permission.RECORD_AUDIO)
-    fun start(onPcm: (ByteArray) -> Unit) {
+    fun start(onPcm: (ByteArray, Int) -> Unit) {
         val bufSize = AudioRecord.getMinBufferSize(SAMPLE_RATE, CHANNEL, ENCODING)
         recorder = AudioRecord(MediaRecorder.AudioSource.MIC, SAMPLE_RATE, CHANNEL, ENCODING, bufSize)
         recording = true
@@ -24,7 +24,7 @@ class AudioRecorder {
             val buf = ByteArray(bufSize)
             while (recording) {
                 val n = recorder?.read(buf, 0, buf.size) ?: break
-                if (n > 0) onPcm(buf.copyOf(n))
+                if (n > 0) onPcm(buf, n)
             }
         }.start()
     }

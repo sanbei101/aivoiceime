@@ -83,11 +83,15 @@ class AsrSession internal constructor(
         awaitClose { conn.close(1000, null) }
     }
 
-    fun sendPcm(pcm: ByteArray) = synchronized(lock) {
+    fun sendPcm(pcm: ByteArray) {
+        sendPcm(pcm, 0, pcm.size)
+    }
+
+    fun sendPcm(pcm: ByteArray, offset: Int, length: Int) = synchronized(lock) {
         if (!handshakeDone) {
-            pending.write(pcm)
+            pending.write(pcm, offset, length)
         } else {
-            drainLocked(pcm)
+            drainLocked(pcm, offset, length)
         }
     }
 
@@ -97,8 +101,8 @@ class AsrSession internal constructor(
         ws?.send(buildAudioRequest(true, remaining).toByteString())
     }
 
-    private fun drainLocked(pcm: ByteArray) {
-        accumulator.write(pcm)
+    private fun drainLocked(pcm: ByteArray, offset: Int = 0, length: Int = pcm.size - offset) {
+        accumulator.write(pcm, offset, length)
         while (accumulator.size() >= SEGMENT_BYTES) {
             val buf = accumulator.toByteArray()
             val chunk = buf.copyOf(SEGMENT_BYTES)

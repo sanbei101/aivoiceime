@@ -136,7 +136,7 @@ class AiVoiceImeService : InputMethodService(), LifecycleOwner, ViewModelStoreOw
                 }
             }
         }
-        recorder.start { pcm -> s.sendPcm(pcm) }
+        recorder.start { pcm, length -> s.sendPcm(pcm, 0, length) }
     }
 
     fun stopVoiceInput() {
