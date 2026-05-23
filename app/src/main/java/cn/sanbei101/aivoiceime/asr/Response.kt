@@ -38,7 +38,6 @@ internal fun parseResponse(msg: ByteArray): AsrResponse {
     val compression = thirdByte and 0x0F
     buf.get() // reserved
 
-    // skip extra header bytes beyond the first 4
     repeat((headerSize - 1) * 4) { buf.get() }
 
     var payloadSequence = 0
@@ -58,7 +57,11 @@ internal fun parseResponse(msg: ByteArray): AsrResponse {
     when (messageType) {
         MessageType.SERVER_ERROR_RESPONSE -> {
             code = buf.int
-            buf.int // payload size
+            val errSize = buf.int
+            val errBytes = ByteArray(errSize).also { buf.get(it) }
+            val errMsg = String(errBytes, Charsets.UTF_8)
+            android.util.Log.e("AsrSession", "server error $code: $errMsg")
+            return AsrResponse(code, isLastPackage, payloadSequence, null, errMsg)
         }
         MessageType.SERVER_FULL_RESPONSE -> {
             buf.int // payload size

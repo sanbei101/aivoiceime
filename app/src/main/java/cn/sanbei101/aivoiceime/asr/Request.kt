@@ -38,24 +38,22 @@ internal fun buildFullClientRequest(uid: String = "android_uid"): ByteArray {
     }.toString().toByteArray()
 
     val compressed = gzipCompress(payload)
-    val header = buildHeader(MessageType.CLIENT_FULL_REQUEST, Flags.POS_SEQUENCE)
+    val header = buildHeader(MessageType.CLIENT_FULL_REQUEST, Flags.NO_SEQUENCE)
 
-    return ByteBuffer.allocate(header.size + 4 + 4 + compressed.size).apply {
+    return ByteBuffer.allocate(header.size + 4 + compressed.size).apply {
         put(header)
-        putInt(1)
         putInt(compressed.size)
         put(compressed)
     }.array()
 }
 
-internal fun buildAudioRequest(seq: Int, segment: ByteArray): ByteArray {
-    val flags = if (seq < 0) Flags.NEG_WITH_SEQUENCE else Flags.POS_SEQUENCE
-    val header = buildHeader(MessageType.CLIENT_AUDIO_ONLY_REQUEST, flags)
+internal fun buildAudioRequest(isLast: Boolean, segment: ByteArray): ByteArray {
+    val flags = if (isLast) Flags.NEG_SEQUENCE else Flags.NO_SEQUENCE
+    val header = buildHeader(MessageType.CLIENT_AUDIO_ONLY_REQUEST, flags, Serialization.NO_SERIALIZATION)
     val compressed = gzipCompress(segment)
 
-    return ByteBuffer.allocate(header.size + 4 + 4 + compressed.size).apply {
+    return ByteBuffer.allocate(header.size + 4 + compressed.size).apply {
         put(header)
-        putInt(seq)
         putInt(compressed.size)
         put(compressed)
     }.array()
