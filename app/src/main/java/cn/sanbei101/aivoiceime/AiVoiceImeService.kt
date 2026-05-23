@@ -216,19 +216,15 @@ fun KeyboardScreen(
     }
 
     fun appendPinyin(char: String) {
-        pinyinBuffer.append(char.lowercase())
-        syncPinyinText()
+        pinyinBuffer.append(char.lowercase()); syncPinyinText()
     }
 
     fun clearPinyin() {
-        pinyinBuffer.clear()
-        pinyinText = ""
-        candidates = emptyList()
+        pinyinBuffer.clear(); pinyinText = ""; candidates = emptyList()
     }
 
     fun commitCandidate(text: String) {
-        onText(text)
-        clearPinyin()
+        onText(text); clearPinyin()
     }
 
     fun commitFirstCandidateOrSpace() {
@@ -240,13 +236,26 @@ fun KeyboardScreen(
         }
     }
 
+    val onAlphabetKeyClick = remember { { char: String -> appendPinyin(char) } }
+    val onBackspaceClick = remember {
+        {
+            if (pinyinBuffer.isNotEmpty()) {
+                pinyinBuffer.deleteAt(pinyinBuffer.lastIndex)
+                syncPinyinText()
+            } else {
+                onDelete()
+            }
+        }
+    }
+    val onSpaceClick = remember { { commitFirstCandidateOrSpace() } }
+    val onCommaClick = remember { { onText(",") } }
+    val onEnterClick = remember { { onEnter() } }
+
     LaunchedEffect(pinyinText) {
         candidates = if (pinyinText.isBlank()) {
             emptyList()
         } else {
-            withContext(Dispatchers.IO) {
-                pinyinDao.candidates(pinyinText.lowercase())
-            }
+            withContext(Dispatchers.IO) { pinyinDao.candidates(pinyinText.lowercase()) }
         }
     }
 
@@ -257,75 +266,81 @@ fun KeyboardScreen(
             .navigationBarsPadding()
             .padding(bottom = 8.dp)
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(48.dp)
-                .padding(horizontal = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Icon(
-                imageVector = Icons.Default.Settings,
-                contentDescription = "设置",
-                tint = TextWhite,
+        if (pinyinText.isEmpty()) {
+            Row(
                 modifier = Modifier
-                    .size(22.dp)
-                    .clickable { /* TODO: 点击设置 */ }
-            )
-            Surface(
-                modifier = Modifier
-                    .width(130.dp)
-                    .height(32.dp)
-                    .pointerInput(Unit) {
-                        detectTapGestures(
-                            onPress = {
-                                isRecording = true
-                                onRecordStart()
-                                tryAwaitRelease()
-                                isRecording = false
-                                onRecordStop()
-                            }
-                        )
-                    },
-                shape = RoundedCornerShape(16.dp),
-                color = if (isRecording) Color(0xFFD32F2F) else FunctionKeyColor
+                    .fillMaxWidth()
+                    .height(48.dp)
+                    .padding(horizontal = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center,
-                    modifier = Modifier.fillMaxSize()
+                Icon(
+                    imageVector = Icons.Default.Settings,
+                    contentDescription = "设置",
+                    tint = TextWhite,
+                    modifier = Modifier
+                        .size(22.dp)
+                        .clickable { /* TODO */ }
+                )
+                Surface(
+                    modifier = Modifier
+                        .width(130.dp)
+                        .height(32.dp)
+                        .pointerInput(Unit) {
+                            detectTapGestures(
+                                onPress = {
+                                    isRecording = true
+                                    onRecordStart()
+                                    tryAwaitRelease()
+                                    isRecording = false
+                                    onRecordStop()
+                                }
+                            )
+                        },
+                    shape = RoundedCornerShape(16.dp),
+                    color = if (isRecording) Color(0xFFD32F2F) else FunctionKeyColor
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Mic,
-                        contentDescription = "语音输入",
-                        tint = TextWhite,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = if (isRecording) "识别中..." else "按住说话",
-                        color = TextWhite,
-                        fontSize = 13.sp
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center,
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Mic,
+                            contentDescription = "语音输入",
+                            tint = TextWhite,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = if (isRecording) "识别中..." else "按住说话",
+                            color = TextWhite,
+                            fontSize = 13.sp
+                        )
+                    }
                 }
+                Icon(
+                    imageVector = Icons.Default.KeyboardHide,
+                    contentDescription = "隐藏键盘",
+                    tint = TextWhite,
+                    modifier = Modifier
+                        .size(22.dp)
+                        .clickable { onHide() }
+                )
             }
-            Icon(
-                imageVector = Icons.Default.KeyboardHide,
-                contentDescription = "隐藏键盘",
-                tint = TextWhite,
+        } else {
+            CandidateRow(
+                pinyin = pinyinText,
+                candidates = candidates,
+                onCandidate = { commitCandidate(it.word) },
                 modifier = Modifier
-                    .size(22.dp)
-                    .clickable { onHide() }
+                    .fillMaxWidth()
+                    .height(48.dp) // 高度对齐
             )
         }
 
-        CandidateRow(
-            pinyin = pinyinText,
-            candidates = candidates,
-            onCandidate = { commitCandidate(it.word) }
-        )
-
+        // --- 按键矩阵区域 ---
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -334,18 +349,14 @@ fun KeyboardScreen(
         ) {
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 row1.forEach { char ->
-                    KeyButton(char, Modifier.weight(1f)) {
-                        appendPinyin(char)
-                    }
+                    KeyButton(char, Modifier.weight(1f), onClick = onAlphabetKeyClick)
                 }
             }
 
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 Spacer(modifier = Modifier.weight(0.5f))
                 row2.forEach { char ->
-                    KeyButton(char, Modifier.weight(1f)) {
-                        appendPinyin(char)
-                    }
+                    KeyButton(char, Modifier.weight(1f), onClick = onAlphabetKeyClick)
                 }
                 Spacer(modifier = Modifier.weight(0.5f))
             }
@@ -355,13 +366,12 @@ fun KeyboardScreen(
                     imageVector = Icons.Default.KeyboardCapslock,
                     contentDescription = "大小写切换",
                     modifier = Modifier.weight(1.5f),
-                    backgroundColor = FunctionKeyColor
-                ) { /* TODO: 处理大小写切换逻辑 */ }
+                    backgroundColor = FunctionKeyColor,
+                    onClick = { /* TODO: 处理大小写切换逻辑 */ }
+                )
 
                 row3.forEach { char ->
-                    KeyButton(char, Modifier.weight(1f)) {
-                        appendPinyin(char)
-                    }
+                    KeyButton(char, Modifier.weight(1f), onClick = onAlphabetKeyClick)
                 }
 
                 KeyIconButton(
@@ -369,40 +379,40 @@ fun KeyboardScreen(
                     contentDescription = "删除",
                     modifier = Modifier.weight(1.5f),
                     backgroundColor = FunctionKeyColor,
-                    iconSize = 20.dp
-                ) {
-                    if (pinyinBuffer.isNotEmpty()) {
-                        pinyinBuffer.deleteAt(pinyinBuffer.lastIndex)
-                        syncPinyinText()
-                    } else {
-                        onDelete()
-                    }
-                }
+                    iconSize = 20.dp,
+                    onClick = onBackspaceClick
+                )
             }
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                KeyButton("123", Modifier.weight(1.5f), FunctionKeyColor) {}
-                KeyButton(",", Modifier.weight(1f), FunctionKeyColor) { onText(",") }
+                KeyButton("123", Modifier.weight(1.5f), FunctionKeyColor, onClick = {})
+                KeyButton(",", Modifier.weight(1f), FunctionKeyColor, onClick = { onCommaClick() })
 
                 KeyIconButton(
                     imageVector = Icons.Default.SpaceBar,
                     contentDescription = "空格",
                     modifier = Modifier.weight(4.3f),
                     backgroundColor = KeyColor,
-                    iconSize = 18.dp
-                ) { commitFirstCandidateOrSpace() }
+                    iconSize = 18.dp,
+                    onClick = onSpaceClick
+                )
                 KeyIconButton(
                     imageVector = Icons.Default.Language,
                     contentDescription = "切换语言",
                     modifier = Modifier.weight(1.4f),
                     backgroundColor = FunctionKeyColor,
-                    iconSize = 20.dp
-                ) { /* TODO: 处理中英文切换逻辑 */ }
+                    iconSize = 20.dp,
+                    onClick = { /* TODO: 处理中英文切换逻辑 */ }
+                )
 
-                KeyButton("换行", Modifier.weight(1.8f), FunctionKeyColor) { onEnter() }
+                KeyButton(
+                    "换行",
+                    Modifier.weight(1.8f),
+                    FunctionKeyColor,
+                    onClick = { onEnterClick() })
             }
         }
     }
@@ -412,58 +422,55 @@ fun KeyboardScreen(
 fun CandidateRow(
     pinyin: String,
     candidates: List<PinyinCandidate>,
-    onCandidate: (PinyinCandidate) -> Unit
+    onCandidate: (PinyinCandidate) -> Unit,
+    modifier: Modifier = Modifier
 ) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(42.dp)
-            .padding(horizontal = 8.dp),
+        modifier = modifier.padding(horizontal = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        if (pinyin.isNotEmpty()) {
-            Surface(
-                modifier = Modifier.height(30.dp),
-                shape = RoundedCornerShape(6.dp),
-                color = FunctionKeyColor
+        Surface(
+            modifier = Modifier.height(32.dp),
+            shape = RoundedCornerShape(6.dp),
+            color = FunctionKeyColor
+        ) {
+            Box(
+                modifier = Modifier.padding(horizontal = 10.dp),
+                contentAlignment = Alignment.Center
             ) {
-                Box(
-                    modifier = Modifier.padding(horizontal = 10.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = pinyin,
-                        color = TextWhite,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Medium
-                    )
-                }
+                Text(
+                    text = pinyin,
+                    color = TextWhite,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Medium
+                )
             }
+        }
 
-            Spacer(modifier = Modifier.width(6.dp))
+        Spacer(modifier = Modifier.width(8.dp))
 
-            LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                items(candidates) { candidate ->
-                    Surface(
-                        onClick = { onCandidate(candidate) },
-                        modifier = Modifier.height(32.dp),
-                        shape = RoundedCornerShape(6.dp),
-                        color = KeyColor
+        LazyRow(
+            modifier = Modifier.weight(1f),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            items(candidates, key = { it.word }) { candidate ->
+                Surface(
+                    onClick = { onCandidate(candidate) },
+                    modifier = Modifier.height(34.dp),
+                    shape = RoundedCornerShape(6.dp),
+                    color = KeyColor
+                ) {
+                    Box(
+                        modifier = Modifier.padding(horizontal = 12.dp),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Box(
-                            modifier = Modifier.padding(horizontal = 12.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = candidate.word,
-                                color = TextWhite,
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
+                        Text(
+                            text = candidate.word,
+                            color = TextWhite,
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.Medium
+                        )
                     }
                 }
             }
@@ -476,10 +483,10 @@ fun KeyButton(
     text: String,
     modifier: Modifier = Modifier,
     backgroundColor: Color = KeyColor,
-    onClick: () -> Unit
+    onClick: (String) -> Unit
 ) {
     Surface(
-        onClick = onClick,
+        onClick = { onClick(text) },
         modifier = modifier.height(46.dp),
         shape = RoundedCornerShape(6.dp),
         color = backgroundColor
