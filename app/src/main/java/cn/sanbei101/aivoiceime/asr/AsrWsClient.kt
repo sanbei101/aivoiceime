@@ -12,6 +12,7 @@ import okhttp3.WebSocketListener
 import okio.ByteString
 import okio.ByteString.Companion.toByteString
 import java.io.ByteArrayOutputStream
+import java.io.Closeable
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 import kotlin.math.min
@@ -31,7 +32,7 @@ class AsrSession internal constructor(
     private val url: String,
     private val apiKey: String,
     private val uid: String
-) {
+) : Closeable {
     private val lock = Any()
     @Volatile private var handshakeDone = false
     @Volatile private var ws: WebSocket? = null
@@ -39,7 +40,7 @@ class AsrSession internal constructor(
     private var segmentBytes = 0
     private val pending = ByteArrayOutputStream()
 
-    val responses: Flow<AsrResponse> = callbackFlow {
+    val responses: Flow<AsrResponse> = callbackFlow responseFlow@{
         val headers = buildAuthHeaders(apiKey, UUID.randomUUID().toString())
         val reqBuilder = Request.Builder().url(url)
         headers.forEach { (k, v) -> reqBuilder.addHeader(k, v) }
@@ -55,7 +56,7 @@ class AsrSession internal constructor(
                 if (!handshakeDone) {
                     handshakeDone = true
                     if (resp.code != 0) {
-                        close(RuntimeException("Handshake error: ${resp.code}"))
+                        this@responseFlow.close(RuntimeException("Handshake error: ${resp.code}"))
                         webSocket.close(1000, null)
                         return
                     }
@@ -69,20 +70,22 @@ class AsrSession internal constructor(
                 }
                 trySend(resp)
                 if (resp.isLastPackage || resp.code != 0) {
-                    close()
+                    this@responseFlow.close()
                     webSocket.close(1000, null)
                 }
             }
 
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
                 Log.e("AsrSession", "failure: code=${response?.code}", t)
-                close()
+                this@responseFlow.close()
             }
 
-            override fun onClosed(webSocket: WebSocket, code: Int, reason: String) { close() }
+            override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
+                this@responseFlow.close()
+            }
         })
         ws = conn
-        awaitClose { conn.close(1000, null) }
+        awaitClose { this@AsrSession.close() }
     }
 
     fun sendPcm(pcm: ByteArray) {
@@ -99,7 +102,11 @@ class AsrSession internal constructor(
 
     fun finish() = synchronized(lock) {
         ws?.send(buildAudioRequest(true, segmentBuffer, 0, segmentBytes).toByteString())
-        segmentBytes = 0
+        closeLocked()
+    }
+
+    override fun close() = synchronized(lock) {
+        closeLocked()
     }
 
     private fun drainLocked(pcm: ByteArray, offset: Int = 0, length: Int = pcm.size - offset) {
@@ -122,5 +129,13 @@ class AsrSession internal constructor(
                 segmentBytes = 0
             }
         }
+    }
+
+    private fun closeLocked() {
+        segmentBytes = 0
+        pending.reset()
+        ws?.close(1000, null)
+        ws = null
+        handshakeDone = false
     }
 }
