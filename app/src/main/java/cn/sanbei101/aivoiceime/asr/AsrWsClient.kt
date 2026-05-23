@@ -1,11 +1,8 @@
 package cn.sanbei101.aivoiceime.asr
 
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
-import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
@@ -14,72 +11,110 @@ import okhttp3.WebSocketListener
 import okio.ByteString
 import okio.ByteString.Companion.toByteString
 import java.util.UUID
+import java.util.concurrent.TimeUnit
+
+private const val SEGMENT_SAMPLES = 16000 * 200 / 1000  // 200ms @ 16kHz mono 16bit
+private const val SEGMENT_BYTES = SEGMENT_SAMPLES * 2
 
 class AsrWsClient(
     private val url: String,
     private val appKey: String,
-    private val accessKey: String,
-    private val segmentDurationMs: Int = 200
+    private val accessKey: String
 ) {
-    private val httpClient = OkHttpClient()
+    private val httpClient = OkHttpClient.Builder()
+        .readTimeout(0, TimeUnit.MILLISECONDS)
+        .build()
 
-    fun recognize(audioData: ByteArray, uid: String = "android_uid"): Flow<AsrResponse> {
-        require(isWav(audioData)) { "Only WAV format is supported" }
-        val wavInfo = readWavInfo(audioData)
-        val segmentSize = wavInfo.channels * wavInfo.sampleWidth * wavInfo.frameRate * segmentDurationMs / 1000
-        val segments = wavInfo.audioData.toList().chunked(segmentSize).map { it.toByteArray() }
+    fun startSession(uid: String = "android_uid"): AsrSession {
+        return AsrSession(httpClient, url, appKey, accessKey, uid)
+    }
+}
 
-        return callbackFlow {
-            val headers = buildAuthHeaders(appKey, accessKey, UUID.randomUUID().toString())
-            val requestBuilder = Request.Builder().url(url)
-            headers.forEach { (k, v) -> requestBuilder.addHeader(k, v) }
+class AsrSession internal constructor(
+    httpClient: OkHttpClient,
+    url: String,
+    appKey: String,
+    accessKey: String,
+    uid: String
+) {
+    private var seq = 1
+    @Volatile private var handshakeDone = false
+    private val pcmAccumulator = mutableListOf<Byte>()
+    private val pendingPcm = mutableListOf<Byte>()  // buffered before handshake
 
-            var seq = 1
-            var handshakeDone = false
+    val responses: Flow<AsrResponse>
+    private lateinit var ws: WebSocket
+    private lateinit var flowClose: (Throwable?) -> Unit
 
-            val ws = httpClient.newWebSocket(requestBuilder.build(), object : WebSocketListener() {
+    init {
+        val headers = buildAuthHeaders(appKey, accessKey, UUID.randomUUID().toString())
+        val reqBuilder = Request.Builder().url(url)
+        headers.forEach { (k, v) -> reqBuilder.addHeader(k, v) }
+
+        responses = callbackFlow {
+            flowClose = { err -> if (err != null) close(err) else close() }
+
+            ws = httpClient.newWebSocket(reqBuilder.build(), object : WebSocketListener() {
                 override fun onOpen(webSocket: WebSocket, response: Response) {
                     webSocket.send(buildFullClientRequest(uid).toByteString())
                 }
 
                 override fun onMessage(webSocket: WebSocket, bytes: ByteString) {
                     val resp = parseResponse(bytes.toByteArray())
-
                     if (!handshakeDone) {
                         handshakeDone = true
                         if (resp.code != 0) {
-                            close(RuntimeException("Handshake failed: code=${resp.code}"))
-                            webSocket.close(1000, null)
+                            flowClose(RuntimeException("Handshake error: ${resp.code}"))
                             return
                         }
-                        launch(Dispatchers.IO) {
-                            segments.forEachIndexed { index, segment ->
-                                val s = if (index == segments.lastIndex) -seq else seq
-                                webSocket.send(buildAudioRequest(s, segment).toByteString())
-                                seq++
-                                delay(segmentDurationMs.toLong())
+                        // flush buffered PCM collected before handshake completed
+                        synchronized(pendingPcm) {
+                            if (pendingPcm.isNotEmpty()) {
+                                drainPcm(pendingPcm.toByteArray(), false)
+                                pendingPcm.clear()
                             }
                         }
                         return
                     }
-
                     trySend(resp)
-                    if (resp.isLastPackage || resp.code != 0) {
-                        close()
-                        webSocket.close(1000, null)
-                    }
+                    if (resp.isLastPackage || resp.code != 0) flowClose(null)
                 }
 
                 override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
-                    close(t)
+                    android.util.Log.e("AsrSession", "WebSocket failure: ${response?.code} ${t.message}")
+                    flowClose(null)
                 }
-
-                override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
-                    close()
-                }
+                override fun onClosed(webSocket: WebSocket, code: Int, reason: String) = flowClose(null)
             })
 
             awaitClose { ws.close(1000, null) }
+        }
+    }
+
+    fun sendPcm(pcm: ByteArray) {
+        if (!handshakeDone) {
+            synchronized(pendingPcm) { pendingPcm.addAll(pcm.toList()) }
+            return
+        }
+        drainPcm(pcm, false)
+    }
+
+    fun finish() {
+        val remaining: ByteArray
+        synchronized(pendingPcm) {
+            remaining = (pendingPcm + pcmAccumulator).toByteArray()
+            pendingPcm.clear()
+            pcmAccumulator.clear()
+        }
+        ws.send(buildAudioRequest(-seq, remaining).toByteString())
+    }
+
+    private fun drainPcm(pcm: ByteArray, isFinal: Boolean) {
+        pcmAccumulator.addAll(pcm.toList())
+        while (pcmAccumulator.size >= SEGMENT_BYTES) {
+            val chunk = pcmAccumulator.subList(0, SEGMENT_BYTES).toByteArray()
+            pcmAccumulator.subList(0, SEGMENT_BYTES).clear()
+            ws.send(buildAudioRequest(seq++, chunk).toByteString())
         }
     }
 }

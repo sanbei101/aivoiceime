@@ -21,7 +21,7 @@ internal fun buildFullClientRequest(uid: String = "android_uid"): ByteArray {
     val payload = JSONObject().apply {
         put("user", JSONObject().apply { put("uid", uid) })
         put("audio", JSONObject().apply {
-            put("format", "wav")
+            put("format", "pcm")
             put("codec", "raw")
             put("rate", 16000)
             put("bits", 16)
@@ -62,7 +62,7 @@ internal fun buildAudioRequest(seq: Int, segment: ByteArray): ByteArray {
 }
 
 internal fun buildAuthHeaders(appKey: String, accessKey: String, requestId: String): Map<String, String> = mapOf(
-    "X-Api-Resource-Id" to "volc.bigasr.sauc.duration",
+    "X-Api-Resource-Id" to "volc.seedasr.sauc.duration",
     "X-Api-Request-Id" to requestId,
     "X-Api-Access-Key" to accessKey,
     "X-Api-App-Key" to appKey
