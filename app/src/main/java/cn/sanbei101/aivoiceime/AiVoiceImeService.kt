@@ -3,6 +3,7 @@ package cn.sanbei101.aivoiceime
 import android.Manifest
 import android.content.pm.PackageManager
 import android.inputmethodservice.InputMethodService
+import android.util.Log
 import android.view.KeyEvent
 import android.view.View
 import androidx.compose.foundation.background
@@ -74,8 +75,6 @@ import cn.sanbei101.aivoiceime.ui.theme.TextWhite
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-
-private const val ACCESS_KEY = "ec2cd821-0358-497c-80a6-cecd5b22e1ea"
 private const val ASR_URL = "wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async"
 
 class AiVoiceImeService : InputMethodService(), LifecycleOwner, ViewModelStoreOwner, SavedStateRegistryOwner {
@@ -89,7 +88,7 @@ class AiVoiceImeService : InputMethodService(), LifecycleOwner, ViewModelStoreOw
     override val savedStateRegistry: SavedStateRegistry = savedStateRegistryController.savedStateRegistry
 
     private val recorder = AudioRecorder()
-    private val asrClient = AsrWsClient(ASR_URL, ACCESS_KEY)
+    private val asrClient = AsrWsClient(ASR_URL, BuildConfig.ASR_API_KEY)
     private var session: AsrSession? = null
     private val pinyinDao: PinyinDao by lazy { PinyinDatabase.getInstance(this).pinyinDao() }
 
@@ -120,6 +119,10 @@ class AiVoiceImeService : InputMethodService(), LifecycleOwner, ViewModelStoreOw
 
     fun startVoiceInput() {
         if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            return
+        }
+        if (BuildConfig.ASR_API_KEY.isBlank()) {
+            Log.e("AiVoiceImeService", "ASR_API_KEY is not configured")
             return
         }
         val s = asrClient.startSession()

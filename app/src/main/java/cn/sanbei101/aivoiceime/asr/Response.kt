@@ -1,7 +1,13 @@
 package cn.sanbei101.aivoiceime.asr
 
-import org.json.JSONObject
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 import java.nio.ByteBuffer
+
+private val responseJson = Json {
+    ignoreUnknownKeys = true
+}
 
 data class AsrWord(val text: String, val startTime: Int, val endTime: Int)
 
@@ -25,6 +31,40 @@ data class AsrResponse(
     val payloadSequence: Int,
     val result: AsrResult?,
     val error: String?
+)
+
+@Serializable
+private data class AsrResponsePayload(
+    val error: String? = null,
+    val result: AsrResultPayload? = null,
+    @SerialName("audio_info") val audioInfo: AudioInfoPayload? = null
+)
+
+@Serializable
+private data class AsrResultPayload(
+    val text: String = "",
+    val utterances: List<AsrUtterancePayload> = emptyList()
+)
+
+@Serializable
+private data class AsrUtterancePayload(
+    val text: String = "",
+    @SerialName("start_time") val startTime: Int = 0,
+    @SerialName("end_time") val endTime: Int = 0,
+    val definite: Boolean = false,
+    val words: List<AsrWordPayload> = emptyList()
+)
+
+@Serializable
+private data class AsrWordPayload(
+    val text: String = "",
+    @SerialName("start_time") val startTime: Int = 0,
+    @SerialName("end_time") val endTime: Int = 0
+)
+
+@Serializable
+private data class AudioInfoPayload(
+    val duration: Int = 0
 )
 
 internal fun parseResponse(msg: ByteArray): AsrResponse {
@@ -74,25 +114,25 @@ internal fun parseResponse(msg: ByteArray): AsrResponse {
     val decompressed = if (compression == Compression.GZIP) gzipDecompress(payload) else payload
 
     return try {
-        val json = JSONObject(String(decompressed))
-        val errorMsg = json.optString("error").takeIf { it.isNotEmpty() }
-        val resultJson = json.optJSONObject("result")
-        val audioInfo = json.optJSONObject("audio_info")
-
-        val result = resultJson?.let {
-            val utterancesJson = it.optJSONArray("utterances")
-            val utterances = (0 until (utterancesJson?.length() ?: 0)).map { i ->
-                val u = utterancesJson!!.getJSONObject(i)
-                val wordsJson = u.optJSONArray("words")
-                val words = (0 until (wordsJson?.length() ?: 0)).map { j ->
-                    val w = wordsJson!!.getJSONObject(j)
-                    AsrWord(w.optString("text"), w.optInt("start_time"), w.optInt("end_time"))
-                }
-                AsrUtterance(u.optString("text"), u.optInt("start_time"), u.optInt("end_time"), u.optBoolean("definite"), words)
-            }
-            AsrResult(it.optString("text"), utterances, audioInfo?.optInt("duration") ?: 0)
+        val payloadJson = responseJson.decodeFromString<AsrResponsePayload>(String(decompressed))
+        val result = payloadJson.result?.let { resultPayload ->
+            AsrResult(
+                text = resultPayload.text,
+                utterances = resultPayload.utterances.map { utterance ->
+                    AsrUtterance(
+                        text = utterance.text,
+                        startTime = utterance.startTime,
+                        endTime = utterance.endTime,
+                        definite = utterance.definite,
+                        words = utterance.words.map { word ->
+                            AsrWord(word.text, word.startTime, word.endTime)
+                        }
+                    )
+                },
+                audioDuration = payloadJson.audioInfo?.duration ?: 0
+            )
         }
-        AsrResponse(code, isLastPackage, payloadSequence, result, errorMsg)
+        AsrResponse(code, isLastPackage, payloadSequence, result, payloadJson.error)
     } catch (e: Exception) {
         AsrResponse(code, isLastPackage, payloadSequence, null, e.message)
     }
