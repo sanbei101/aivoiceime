@@ -28,10 +28,11 @@ jobs:
       - name: Grant Execute Permission for Gradlew
         run: chmod +x ./gradlew
 
-      - name: Build APK
-        run: ./gradlew assembleRelease
+      - name: Build Release APK
+        run: ./gradlew assembleRelease --parallel --build-cache --configuration-cache
         env:
           ASR_API_KEY: ${{ secrets.ASR_API_KEY }}
+          GRADLE_OPTS: -Xmx6g -Xms2g -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v6
