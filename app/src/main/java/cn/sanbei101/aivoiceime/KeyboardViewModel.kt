@@ -1,6 +1,7 @@
 package cn.sanbei101.aivoiceime
 
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
@@ -18,6 +19,9 @@ class KeyboardViewModel(private val pinyinDao: PinyinDao) : ViewModel() {
     var candidates by mutableStateOf<List<PinyinCandidate>>(emptyList())
         private set
     var isRecording by mutableStateOf(false)
+        private set
+
+    var audioVolume by mutableFloatStateOf(0f)
         private set
 
     private val pinyinBuffer = StringBuilder()
@@ -41,7 +45,17 @@ class KeyboardViewModel(private val pinyinDao: PinyinDao) : ViewModel() {
 
     fun setRecordingState(recording: Boolean) {
         isRecording = recording
+        if (!recording) {
+            audioVolume = 0f
+        }
     }
+
+    fun updateAudioVolume(volume: Float) {
+        if (kotlin.math.abs(this.audioVolume - volume) > 0.02f) {
+            this.audioVolume = volume
+        }
+    }
+
 
     private fun updatePinyinState() {
         pinyinText = pinyinBuffer.toString()

@@ -73,15 +73,21 @@ class AiVoiceImeService : InputMethodService(), LifecycleOwner, ViewModelStoreOw
             return
         }
         viewModel.setRecordingState(true)
-        voiceManager.start(lifecycleScope) { text, isLast ->
-            lifecycleScope.launch(Dispatchers.Main) {
-                if (isLast) {
-                    currentInputConnection?.commitText(text, 1)
-                } else {
-                    currentInputConnection?.setComposingText(text, 1)
+        voiceManager.start(
+            scope = lifecycleScope,
+            onResult = { text, isLast ->
+                lifecycleScope.launch(Dispatchers.Main) {
+                    if (isLast) {
+                        currentInputConnection?.commitText(text, 1)
+                    } else {
+                        currentInputConnection?.setComposingText(text, 1)
+                    }
                 }
+            },
+            onVolume = { volume ->
+                viewModel.updateAudioVolume(volume)
             }
-        }
+        )
     }
 
     private fun stopVoiceInput() {
@@ -105,6 +111,7 @@ class AiVoiceImeService : InputMethodService(), LifecycleOwner, ViewModelStoreOw
                     pinyinText = viewModel.pinyinText,
                     candidates = viewModel.candidates,
                     isRecording = viewModel.isRecording,
+                    audioVolume = viewModel.audioVolume,
                     onAlphabetClick = { viewModel.appendPinyin(it) },
                     onDelete = {
                         if (viewModel.pinyinText.isNotEmpty()) {
