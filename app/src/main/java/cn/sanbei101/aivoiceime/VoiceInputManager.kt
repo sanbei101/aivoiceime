@@ -1,6 +1,7 @@
 package cn.sanbei101.aivoiceime
 
 import android.Manifest
+import android.util.Log
 import androidx.annotation.RequiresPermission
 import cn.sanbei101.aivoiceime.asr.AsrSession
 import cn.sanbei101.aivoiceime.asr.AsrWsClient
@@ -45,8 +46,6 @@ class VoiceInputManager(private val apiKey: String) {
         recorder.stop()
         session?.finish()
         session = null
-        responseJob?.cancel()
-        responseJob = null
     }
 
     private fun calculateVolume(pcm: ByteArray, length: Int): Float {
@@ -57,6 +56,7 @@ class VoiceInputManager(private val apiKey: String) {
             sum += sample * sample
         }
         val rms = sqrt(sum / (length / 2))
-        return (rms / 10000.0).toFloat().coerceIn(0f, 1f)
+        Log.d("AudioVolume", "当前 RMS 值: $rms")
+        return (rms / 2000.0).toFloat().coerceIn(0f, 1f)
     }
 }

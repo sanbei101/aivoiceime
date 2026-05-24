@@ -49,6 +49,7 @@ import cn.sanbei101.aivoiceime.ui.theme.BgColor
 import cn.sanbei101.aivoiceime.ui.theme.FunctionKeyColor
 import cn.sanbei101.aivoiceime.ui.theme.KeyColor
 import cn.sanbei101.aivoiceime.ui.theme.TextWhite
+import kotlinx.coroutines.delay
 
 
 private val row1 = listOf("Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P")
@@ -111,6 +112,7 @@ fun KeyboardScreen(
                                 onPress = {
                                     onRecordStart()
                                     tryAwaitRelease()
+                                    delay(300)
                                     onRecordStop()
                                 }
                             )
