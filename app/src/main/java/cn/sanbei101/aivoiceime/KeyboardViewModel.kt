@@ -67,8 +67,6 @@ class KeyboardViewModel(private val pinyinDao: PinyinDao) : ViewModel() {
                 return@launch
             }
 
-            delay(100)
-
             val result = pinyinDao.candidates(pinyinText)
             candidates = result
         }
