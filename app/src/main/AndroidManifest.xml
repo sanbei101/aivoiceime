@@ -23,7 +23,7 @@
         </activity>
         <service
             android:name=".AiVoiceImeService"
-            android:label="AI语音输入法"
+            android:label="@string/app_name"
             android:permission="android.permission.BIND_INPUT_METHOD"
             android:exported="true">
             <intent-filter>
