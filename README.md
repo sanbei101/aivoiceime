@@ -1,5 +1,5 @@
 <h1 align="center">
-  <img src="app/src/main/res/mipmap-xxhdpi/ic_launcher.webp" width="48" style="vertical-align: middle; margin-right: 1px;" alt="logo">
+  <img src="app/src/main/res/mipmap-xxhdpi/ic_launcher.webp" width="48" style="vertical-align: bottom; margin-right: 1px;" alt="logo">
   <span>豆沙包输入法 (豆包输入法同款语音引擎)</span>
 </h1>
 
