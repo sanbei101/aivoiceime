@@ -1,5 +1,8 @@
 package cn.sanbei101.aivoiceime
 
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -8,6 +11,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -30,6 +34,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -54,6 +60,7 @@ fun KeyboardScreen(
     pinyinText: String,
     candidates: List<PinyinCandidate>,
     isRecording: Boolean,
+    audioVolume: Float = 0f,
     onAlphabetClick: (String) -> Unit,
     onDelete: () -> Unit,
     onCommitText: (String) -> Unit,
@@ -116,13 +123,20 @@ fun KeyboardScreen(
                         horizontalArrangement = Arrangement.Center,
                         modifier = Modifier.fillMaxSize()
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Mic,
-                            contentDescription = "语音输入",
-                            tint = TextWhite,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
+                        if (isRecording) {
+                            AudioVisualizer(
+                                volume = audioVolume,
+                                modifier = Modifier.padding(end = 6.dp)
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.Mic,
+                                contentDescription = "语音输入",
+                                tint = TextWhite,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                        }
                         Text(
                             text = if (isRecording) "识别中..." else "按住说话",
                             color = TextWhite,
@@ -332,6 +346,44 @@ fun KeyIconButton(
                 contentDescription = contentDescription,
                 tint = TextWhite,
                 modifier = Modifier.size(iconSize)
+            )
+        }
+    }
+}
+
+@Composable
+fun AudioVisualizer(
+    volume: Float,
+    modifier: Modifier = Modifier
+) {
+    val animatedVolume by animateFloatAsState(
+        targetValue = volume.coerceIn(0.15f, 1f),
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "volume_anim"
+    )
+
+    Row(
+        modifier = modifier.height(16.dp),
+        horizontalArrangement = Arrangement.spacedBy(3.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        (0..3).forEach { index ->
+            val heightMultiplier = remember(index) {
+                when (index) {
+                    0, 3 -> 0.7f
+                    else -> 1.0f
+                }
+            }
+            val barHeight = (animatedVolume * heightMultiplier).coerceIn(0.15f, 1f)
+
+            Box(
+                modifier = Modifier
+                    .width(3.dp)
+                    .fillMaxHeight(barHeight)
+                    .background(TextWhite, RoundedCornerShape(1.5.dp))
             )
         }
     }
