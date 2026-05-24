@@ -1,4 +1,7 @@
-# 豆沙包输入法 (豆包输入法同款语音引擎)
+<h1 align="center">
+  <img src="app/src/main/res/mipmap-xxhdpi/ic_launcher.webp" width="48" style="vertical-align: middle; margin-right: 1px;" alt="logo">
+  <span>豆沙包输入法 (豆包输入法同款语音引擎)</span>
+</h1>
 
 一款基于 **豆包AI语音** 流式解析 的 Android 语音输入键盘,支持语音实时转文字和拼音输入法
 
