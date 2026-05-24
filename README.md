@@ -10,6 +10,14 @@
 - **语音输入** - 按住说话按钮,实时语音识别并转换为文字
 - **拼音输入** - 支持拼音输入,智能联想中文候选词
 
+<table align="center">
+  <tr>
+    <td><img src="docs/screen2.jpg" width="250" alt="screen2"></td>
+    <td><img src="docs/screen3.jpg" width="250" alt="screen3"></td>
+    <td><img src="docs/screen1.jpg" width="250" alt="screen1"></td>
+  </tr>
+</table>
+
 ## 系统要求
 
 - Android 14 (API 34) 或更高版本
