@@ -37,7 +37,8 @@ private data class RequestPayload(
     @SerialName("enable_punc") val enablePunc: Boolean = true,
     @SerialName("enable_ddc") val enableDdc: Boolean = true,
     @SerialName("show_utterances") val showUtterances: Boolean = true,
-    @SerialName("enable_nonstream") val enableNonstream: Boolean = false
+    @SerialName("enable_nonstream") val enableNonstream: Boolean = true,
+    @SerialName("end_window_size") val endWindowSize: Int = 200
 )
 
 internal fun buildHeader(
