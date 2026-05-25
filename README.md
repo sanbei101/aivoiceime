@@ -5,6 +5,13 @@
 
 一款基于 **豆包AI语音** 流式解析 的 Android 语音输入键盘,支持语音实时转文字和拼音输入法
 
+> 由于我之前并未接触过 Android 原生开发,但之前对接过豆包语音API,所以选择这个赛题
+> 在Claude老师的帮助下完成了这个项目,恳请评委们多多包涵,希望能进入下一轮面试!
+
+<div align="center">
+  <video src="./docs/demo.mp4" width="300" controls autoplay loop muted></video>
+</div>
+
 ## 功能特点
 
 - **语音输入** - 按住说话按钮,实时语音识别并转换为文字
